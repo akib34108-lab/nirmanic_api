@@ -98,6 +98,7 @@ $totalAmount = round($totalAmount);
 
 $transactionStarted = false;
 try {
+    ensure_activity_log_table($db->conn);
     $db->conn->begin_transaction();
     $transactionStarted = true;
 
@@ -172,6 +173,14 @@ try {
         );
     }
 
+    record_activity(
+        $db->conn,
+        $access_user_id,
+        'purchase',
+        'material purchase',
+        $purchaseId,
+        'Recorded material purchase ' . $purchaseNo . ' totaling ' . number_format($totalAmount, 2)
+    );
     $db->conn->commit();
     $res['status'] = true;
     $res['data'] = [

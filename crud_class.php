@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/activity_log_helpers.php';
+
 class crud_class
 {
 
@@ -8,6 +10,7 @@ class crud_class
     private $password;
     private $database;
     public $conn;
+    private $auditUserId = null;
 
     public function __construct($host = "localhost", $username = "root", $password = "", $database = "nirmanic")
     {
@@ -24,6 +27,43 @@ class crud_class
         if ($this->conn->connect_error) {
             die("Connection failed: " . $this->conn->connect_error);
         }
+    }
+
+    public function set_audit_user($userId)
+    {
+        $this->auditUserId = (int)$userId;
+    }
+
+    private function record_crud_activity($action, $table, $recordId)
+    {
+        if ($this->auditUserId === null || $table === 'users') {
+            return;
+        }
+
+        $entityNames = [
+            'boq' => 'BOQ',
+            'clients' => 'client',
+            'department' => 'department',
+            'designation' => 'designation',
+            'employee' => 'employee',
+            'material_category' => 'material category',
+            'material_inventory' => 'inventory record',
+            'material_issue' => 'material issue',
+            'material_list' => 'material',
+            'material_purchase' => 'material purchase',
+            'material_unit' => 'material unit',
+            'projects' => 'project',
+            'supplier' => 'supplier',
+        ];
+        $entityName = $entityNames[$table] ?? str_replace('_', ' ', $table);
+        record_activity(
+            $this->conn,
+            $this->auditUserId,
+            $action,
+            $entityName,
+            $recordId,
+            ucfirst($action) . ' ' . $entityName . ($recordId !== null ? ' #' . $recordId : '')
+        );
     }
 
     public function common_select(
@@ -166,6 +206,7 @@ class crud_class
             $result["status"] = true;
             $result["data"] = $this->conn->insert_id;
             $result["message"] = "Record inserted successfully";
+            $this->record_crud_activity('create', $table, $this->conn->insert_id);
             return $result;
         } else {
             $result["message"] = "Error: " . $this->conn->error;
@@ -201,6 +242,13 @@ class crud_class
             $result["status"] = true;
             $result["data"] = $this->conn->affected_rows;
             $result["message"] = "Record updated successfully";
+            if ($this->conn->affected_rows > 0) {
+                $action = array_key_exists('deleted_at', $data) && $data['deleted_at'] !== null
+                    ? 'delete'
+                    : 'edit';
+                $recordId = $where['id'] ?? null;
+                $this->record_crud_activity($action, $table, $recordId);
+            }
             return $result;
         } else {
             $result["message"] = "Error: " . $this->conn->error;
@@ -229,6 +277,9 @@ class crud_class
             $result["status"] = true;
             $result["data"] = $this->conn->affected_rows;
             $result["message"] = "Record deleted successfully";
+            if ($this->conn->affected_rows > 0) {
+                $this->record_crud_activity('delete', $table, $where['id'] ?? null);
+            }
             return $result;
         } else {
             $result["message"] = "Error: " . $this->conn->error;
@@ -242,4 +293,3 @@ class crud_class
         $this->conn->close();
     }
 }
-

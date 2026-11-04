@@ -28,6 +28,7 @@ $items = $itemResult['data'] ?? [];
 
 $transactionStarted = false;
 try {
+    ensure_activity_log_table($db->conn);
     $db->conn->begin_transaction();
     $transactionStarted = true;
 
@@ -71,6 +72,16 @@ try {
     }
 
     $deleted = $purchaseStatement->affected_rows;
+    if ($deleted > 0) {
+        record_activity(
+            $db->conn,
+            $access_user_id,
+            'delete',
+            'material purchase',
+            $purchaseId,
+            'Deleted material purchase ' . $purchase->purchase_no
+        );
+    }
     $db->conn->commit();
     $res['status'] = true;
     $res['data'] = $deleted;

@@ -82,6 +82,7 @@ foreach ($items as $item) {
 
 $transactionStarted = false;
 try {
+    ensure_activity_log_table($db->conn);
     $db->conn->begin_transaction();
     $transactionStarted = true;
 
@@ -153,6 +154,14 @@ try {
         );
     }
 
+    record_activity(
+        $db->conn,
+        $access_user_id,
+        'issue',
+        'material issue',
+        $issueId,
+        'Issued materials for issue #' . $issueNo
+    );
     $db->conn->commit();
     $res['status'] = true;
     $res['data'] = [

@@ -28,6 +28,7 @@ $items = $itemResult['data'] ?? [];
 $transactionStarted = false;
 
 try {
+    ensure_activity_log_table($db->conn);
     $db->conn->begin_transaction();
     $transactionStarted = true;
 
@@ -66,6 +67,14 @@ try {
         throw new mysqli_sql_exception($issueStatement->error);
     }
 
+    record_activity(
+        $db->conn,
+        $access_user_id,
+        'delete',
+        'material issue',
+        $issueId,
+        'Deleted material issue #' . $issue->issue_no
+    );
     $db->conn->commit();
     $res['status'] = true;
     $res['data'] = $issueStatement->affected_rows;

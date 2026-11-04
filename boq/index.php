@@ -301,6 +301,7 @@ try {
             ];
         }
 
+        ensure_activity_log_table($db->conn);
         $db->conn->begin_transaction();
         try {
             if ($action === 'create') {
@@ -428,6 +429,14 @@ try {
                 }
             }
             $itemStatement->close();
+            record_activity(
+                $db->conn,
+                $access_user_id,
+                $action === 'create' ? 'create' : 'edit',
+                'BOQ',
+                $boqId,
+                ($action === 'create' ? 'Created BOQ ' . $boqNumber : 'Revised BOQ ' . $current['boq_no']) . ': ' . $title
+            );
             $db->conn->commit();
             boqRespond(true, ['id' => $boqId], $action === 'create' ? 'BOQ created.' : 'BOQ revision saved.');
         } catch (Throwable $error) {
@@ -440,6 +449,7 @@ try {
     if (!$boqId || $boqId < 1) {
         boqRespond(false, null, 'A valid BOQ is required.', 400);
     }
+    ensure_activity_log_table($db->conn);
     $db->conn->begin_transaction();
     try {
         $lock = $db->conn->prepare(
@@ -520,6 +530,14 @@ try {
             throw new RuntimeException('Unable to save BOQ approval history.');
         }
         $log->close();
+        record_activity(
+            $db->conn,
+            $access_user_id,
+            $action,
+            'BOQ',
+            $boqId,
+            'BOQ ' . $current['status'] . ' → ' . $newStatus . ' (#' . $boqId . ')'
+        );
         $db->conn->commit();
         boqRespond(true, ['id' => $boqId, 'status' => $newStatus], 'BOQ ' . $logAction . '.');
     } catch (Throwable $error) {

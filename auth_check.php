@@ -8,6 +8,7 @@ if ($authHeader && preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
     $access_user_id="";
 	if($authresult['data'] > 0){
 		$access_user_id=$authresult['data'][0]->id;
+		$db->set_audit_user($access_user_id);
 	}else{
         echo json_encode(array("message" => "Token is not available in database.",'status'=>false));
         exit;
